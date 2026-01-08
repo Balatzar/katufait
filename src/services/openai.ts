@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { toFile } from "openai";
+import { loadGlossary, formatGlossaryForPrompt } from "./glossary";
 
 let openai: OpenAI | null = null;
 
@@ -31,6 +32,9 @@ export const transcribeAudio = async (audioPath: string): Promise<string> => {
 };
 
 export const formatWithGPT = async (rawText: string): Promise<string> => {
+  const glossaryTerms = await loadGlossary();
+  const glossaryPrompt = formatGlossaryForPrompt(glossaryTerms);
+  
   const response = await getClient().chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
@@ -42,7 +46,8 @@ Each bullet point should be a complete thought.
 Remove filler words, hesitations, and repetitions.
 Keep the original meaning and details intact.
 IMPORTANT: Keep the text in its original language. Do NOT translate.
-Output ONLY the bullet points, nothing else. Each bullet point should start with "- ".`,
+Output ONLY the bullet points, nothing else. Each bullet point should start with "- ".
+${glossaryPrompt}`,
       },
       {
         role: "user",

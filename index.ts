@@ -3,6 +3,7 @@ import { program } from "commander";
 import { recordCommand } from "./src/commands/record";
 import { listCommand } from "./src/commands/list";
 import { analyticsCommand } from "./src/commands/analytics";
+import { dailyCommand } from "./src/commands/daily";
 
 program
   .name("katufait")
@@ -23,5 +24,10 @@ program
   .command("analytics")
   .description("Show statistics about your entries")
   .action(analyticsCommand);
+
+program
+  .command("daily")
+  .description("Show the latest entry")
+  .action(dailyCommand);
 
 program.parse();
