@@ -5,11 +5,12 @@ import { transcribeAudio, formatWithGPT } from "../services/openai";
 import { saveEntry } from "../services/storage";
 import { unlink } from "fs/promises";
 
-type RecordingState = "idle" | "recording" | "processing" | "transcribing" | "formatting" | "saving" | "done" | "error";
+type RecordingState = "selecting-day" | "idle" | "recording" | "processing" | "transcribing" | "formatting" | "saving" | "done" | "error";
 
 export const VoiceRecorder = () => {
   const { exit } = useApp();
   const [state, setState] = useState<RecordingState>("idle");
+  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [audioFile, setAudioFile] = useState<string | null>(null);
   const [transcription, setTranscription] = useState<string | null>(null);
@@ -47,6 +48,27 @@ export const VoiceRecorder = () => {
     }
   }, [state, audioFile]);
 
+  const getSelectedDate = (): Date => {
+    return new Date(Date.now() - selectedDayIndex * 24 * 60 * 60 * 1000);
+  };
+
+  const formatDateHuman = (date: Date): string => {
+    return date.toLocaleDateString("fr-FR", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  const getAvailableDays = (): Date[] => {
+    const days: Date[] = [];
+    for (let i = 0; i <= 7; i++) {
+      days.push(new Date(Date.now() - i * 24 * 60 * 60 * 1000));
+    }
+    return days;
+  };
+
   const processRecording = async (file: string) => {
     try {
       // Transcribe
@@ -59,17 +81,28 @@ export const VoiceRecorder = () => {
       const formattedText = await formatWithGPT(text);
       setFormatted(formattedText);
 
-      // Save to file
-      setState("saving");
-      const path = await saveEntry(formattedText);
-      setSavedPath(path);
-
       // Cleanup temp file
       await unlink(file);
 
-      setState("done");
+      // Show day selection instead of saving immediately
+      setState("selecting-day");
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
+      setState("error");
+    }
+  };
+
+  const saveToSelectedDay = async () => {
+    if (!formatted) return;
+    
+    try {
+      setState("saving");
+      const selectedDate = getSelectedDate();
+      const path = await saveEntry(formatted, selectedDate);
+      setSavedPath(path);
+      setState("done");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save entry");
       setState("error");
     }
   };
@@ -78,6 +111,25 @@ export const VoiceRecorder = () => {
     if (state === "done" || state === "error") {
       exit();
       return;
+    }
+
+    if (state === "selecting-day") {
+      if (key.downArrow && selectedDayIndex < 7) {
+        setSelectedDayIndex(selectedDayIndex + 1);
+        return;
+      }
+      if (key.upArrow && selectedDayIndex > 0) {
+        setSelectedDayIndex(selectedDayIndex - 1);
+        return;
+      }
+      if (input === " ") {
+        await saveToSelectedDay();
+        return;
+      }
+      if (key.escape) {
+        exit();
+        return;
+      }
     }
 
     if (input === " ") {
@@ -120,6 +172,27 @@ export const VoiceRecorder = () => {
           🎙️ Katufait Voice Recorder
         </Text>
       </Box>
+
+      {state === "selecting-day" && (
+        <Box flexDirection="column">
+          <Box marginBottom={1}>
+            <Text bold color="cyan">Select day for entry:</Text>
+          </Box>
+          <Box flexDirection="column">
+            {getAvailableDays().map((day, i) => (
+              <Box key={i}>
+                <Text color={i === selectedDayIndex ? "green" : undefined}>
+                  {i === selectedDayIndex ? "▸ " : "  "}
+                  <Text bold={i === selectedDayIndex}>{formatDateHuman(day)}</Text>
+                </Text>
+              </Box>
+            ))}
+          </Box>
+          <Box marginTop={1}>
+            <Text dimColor>↑↓ select day • SPACE to save • ESC to exit</Text>
+          </Box>
+        </Box>
+      )}
 
       {state === "idle" && (
         <Box flexDirection="column">

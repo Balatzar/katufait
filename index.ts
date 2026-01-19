@@ -27,7 +27,8 @@ import { dailyCommand } from "./src/commands/daily";
 program
   .name("katufait")
   .description("Voice-based daily activity recorder")
-  .version("1.0.0");
+  .version("1.0.0")
+  .action(recordCommand);
 
 program
   .command("record")
