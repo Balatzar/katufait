@@ -12,3 +12,4 @@ Format: `- **Terme**: Description ou contexte`
 - **Hospeat**: Application sur laquelle je travaille
 - **Meal Moment**: Modele de donnée dans Symphonia
 - **Meal Moment Order**: Modele de donnée dans Symphonia
+- **Recette**: Environnement de déploiement de l'application
